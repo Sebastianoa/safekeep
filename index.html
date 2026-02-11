@@ -1,0 +1,2349 @@
+﻿<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SafeKeep">
+<title>SafeKeep</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        vault: {
+          50: '#f0f4ff', 100: '#dbe4ff', 200: '#bac8ff', 300: '#91a7ff',
+          400: '#748ffc', 500: '#5c7cfa', 600: '#4c6ef5', 700: '#4263eb',
+          800: '#3b5bdb', 900: '#364fc7', 950: '#1e3a8a'
+        },
+        surface: {
+          50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1',
+          700: '#1e293b', 800: '#0f172a', 900: '#020617'
+        }
+      },
+      fontFamily: {
+        display: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace']
+      }
+    }
+  }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --toast-duration: 2800ms;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-family: 'DM Sans', system-ui, sans-serif; scroll-behavior: smooth; }
+  body { overflow-x: hidden; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .dark ::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
+  .light ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+
+  /* PIN Input */
+  .pin-dot { width: 18px; height: 18px; border-radius: 50%; transition: all .2s ease; }
+  .pin-dot.filled { transform: scale(1.2); }
+  .dark .pin-dot { background: #334155; border: 2px solid #475569; }
+  .dark .pin-dot.filled { background: #5c7cfa; border-color: #5c7cfa; box-shadow: 0 0 12px #5c7cfa55; }
+  .light .pin-dot { background: #e2e8f0; border: 2px solid #cbd5e1; }
+  .light .pin-dot.filled { background: #4c6ef5; border-color: #4c6ef5; box-shadow: 0 0 12px #4c6ef555; }
+
+  .pin-shake { animation: shake .5s ease-in-out; }
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 15%{transform:translateX(-12px)} 30%{transform:translateX(10px)}
+    45%{transform:translateX(-8px)} 60%{transform:translateX(6px)} 75%{transform:translateX(-3px)}
+  }
+
+  /* Transitions */
+  .screen { display: none; opacity: 0; transition: opacity .35s ease; }
+  .screen.active { display: flex; opacity: 1; }
+  .fade-in { animation: fadeIn .4s ease forwards; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  .slide-up { animation: slideUp .35s ease forwards; }
+  @keyframes slideUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+
+  /* Toast */
+  .toast-enter { animation: toastIn .35s ease forwards; }
+  .toast-exit { animation: toastOut .3s ease forwards; }
+  @keyframes toastIn { from{opacity:0;transform:translateY(20px) scale(.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+  @keyframes toastOut { from{opacity:1;transform:translateY(0) scale(1)} to{opacity:0;transform:translateY(-10px) scale(.95)} }
+
+  /* Card hover */
+  .cred-card { transition: all .2s ease; }
+  .cred-card:hover { transform: translateY(-2px); }
+  .dark .cred-card:hover { box-shadow: 0 8px 25px -5px rgba(0,0,0,.4); }
+  .light .cred-card:hover { box-shadow: 0 8px 25px -5px rgba(0,0,0,.1); }
+
+  /* Strength meter */
+  .strength-bar { height: 4px; border-radius: 999px; transition: width .3s ease, background .3s ease; }
+
+  /* Toggle switch */
+  .toggle-track { width: 44px; height: 24px; border-radius: 12px; position: relative; cursor: pointer; transition: background .2s; }
+  .toggle-knob { width: 20px; height: 20px; border-radius: 50%; background: white; position: absolute; top: 2px; left: 2px; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+  .toggle-track.on .toggle-knob { transform: translateX(20px); }
+
+  /* Numpad button */
+  .numpad-btn { 
+    width: 72px; height: 72px; border-radius: 50%; font-size: 1.5rem; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: all .15s ease; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .numpad-btn:active { transform: scale(.92); }
+  .dark .numpad-btn { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
+  .dark .numpad-btn:hover { background: #334155; }
+  .light .numpad-btn { background: #f1f5f9; color: #1e293b; border: 1px solid #e2e8f0; }
+  .light .numpad-btn:hover { background: #e2e8f0; }
+
+  /* Logo pulse */
+  .logo-pulse { animation: logoPulse 2s ease-in-out infinite; }
+  @keyframes logoPulse { 0%,100%{filter:drop-shadow(0 0 8px #5c7cfa44)} 50%{filter:drop-shadow(0 0 20px #5c7cfa88)} }
+
+  /* Mobile sidebar */
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 40; opacity: 0; transition: opacity .3s; }
+  .sidebar-overlay.show { display: block; opacity: 1; }
+
+  /* Responsive sidebar */
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); position: fixed !important; z-index: 50; transition: transform .3s ease; }
+    .sidebar.open { transform: translateX(0); }
+  }
+
+  /* PWA install banner */
+  .install-banner { 
+    background: linear-gradient(135deg, #4263eb 0%, #5c7cfa 100%);
+    border-radius: 12px; padding: 16px; cursor: pointer;
+  }
+
+  /* Import/Export modal */
+  .modal-backdrop { 
+    position: fixed; inset: 0; background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+    z-index: 100; display: none; align-items: center; justify-content: center;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal-content { animation: slideUp .3s ease; }
+
+  /* Floating action button (mobile) */
+  .fab {
+    position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px;
+    border-radius: 50%; z-index: 30; display: none; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(76,110,245,.4); cursor: pointer; transition: transform .2s;
+  }
+  .fab:active { transform: scale(.9); }
+  @media (max-width: 768px) { .fab { display: flex; } }
+</style>
+</head>
+<body class="dark">
+
+<!-- ============================================ -->
+<!-- TOAST CONTAINER                              -->
+<!-- ============================================ -->
+<div id="toast-container" class="fixed top-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none"></div>
+
+<!-- ============================================ -->
+<!-- SCREEN: PIN SETUP                            -->
+<!-- ============================================ -->
+<div id="screen-setup" class="screen flex-col items-center justify-center min-h-screen dark:bg-surface-800 bg-surface-50 p-4">
+  <div class="fade-in flex flex-col items-center max-w-sm w-full">
+    <!-- Logo -->
+    <div class="logo-pulse mb-6">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+        <rect width="64" height="64" rx="16" fill="#4263eb"/>
+        <path d="M32 16C25.4 16 20 21.4 20 28v4h-2a2 2 0 00-2 2v16a2 2 0 002 2h28a2 2 0 002-2V34a2 2 0 00-2-2h-2v-4c0-6.6-5.4-12-12-12zm6 16H26v-4a6 6 0 1112 0v4z" fill="white"/>
+        <circle cx="32" cy="42" r="3" fill="#4263eb"/>
+      </svg>
+    </div>
+    <h1 class="text-2xl font-bold dark:text-white text-surface-800 mb-1">SafeKeep</h1>
+    <p class="dark:text-surface-300 text-surface-300 text-sm mb-8" id="setup-subtitle">Crea tu PIN maestro</p>
+    <!-- PIN dots -->
+    <div id="setup-dots" class="flex gap-3 mb-8">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <p class="dark:text-surface-300 text-surface-300 text-xs mb-6" id="setup-hint">Ingresa 6 dígitos</p>
+    <!-- Numpad -->
+    <div class="grid grid-cols-3 gap-3">
+      <button class="numpad-btn" onclick="pinInput('1','setup')">1</button>
+      <button class="numpad-btn" onclick="pinInput('2','setup')">2</button>
+      <button class="numpad-btn" onclick="pinInput('3','setup')">3</button>
+      <button class="numpad-btn" onclick="pinInput('4','setup')">4</button>
+      <button class="numpad-btn" onclick="pinInput('5','setup')">5</button>
+      <button class="numpad-btn" onclick="pinInput('6','setup')">6</button>
+      <button class="numpad-btn" onclick="pinInput('7','setup')">7</button>
+      <button class="numpad-btn" onclick="pinInput('8','setup')">8</button>
+      <button class="numpad-btn" onclick="pinInput('9','setup')">9</button>
+      <div></div>
+      <button class="numpad-btn" onclick="pinInput('0','setup')">0</button>
+      <button class="numpad-btn" onclick="pinDelete('setup')">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- SCREEN: PIN LOGIN                            -->
+<!-- ============================================ -->
+<div id="screen-login" class="screen flex-col items-center justify-center min-h-screen dark:bg-surface-800 bg-surface-50 p-4">
+  <div class="fade-in flex flex-col items-center max-w-sm w-full">
+    <div class="logo-pulse mb-6">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+        <rect width="64" height="64" rx="16" fill="#4263eb"/>
+        <path d="M32 16C25.4 16 20 21.4 20 28v4h-2a2 2 0 00-2 2v16a2 2 0 002 2h28a2 2 0 002-2V34a2 2 0 00-2-2h-2v-4c0-6.6-5.4-12-12-12zm6 16H26v-4a6 6 0 1112 0v4z" fill="white"/>
+        <circle cx="32" cy="42" r="3" fill="#4263eb"/>
+      </svg>
+    </div>
+    <h1 class="text-2xl font-bold dark:text-white text-surface-800 mb-1">SafeKeep</h1>
+    <p class="dark:text-surface-300 text-surface-300 text-sm mb-8">Ingresa tu PIN</p>
+    <div id="login-dots" class="flex gap-3 mb-4">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <p class="text-red-400 text-xs mb-4 h-4" id="login-error"></p>
+    <div class="grid grid-cols-3 gap-3">
+      <button class="numpad-btn" onclick="pinInput('1','login')">1</button>
+      <button class="numpad-btn" onclick="pinInput('2','login')">2</button>
+      <button class="numpad-btn" onclick="pinInput('3','login')">3</button>
+      <button class="numpad-btn" onclick="pinInput('4','login')">4</button>
+      <button class="numpad-btn" onclick="pinInput('5','login')">5</button>
+      <button class="numpad-btn" onclick="pinInput('6','login')">6</button>
+      <button class="numpad-btn" onclick="pinInput('7','login')">7</button>
+      <button class="numpad-btn" onclick="pinInput('8','login')">8</button>
+      <button class="numpad-btn" onclick="pinInput('9','login')">9</button>
+      <div></div>
+      <button class="numpad-btn" onclick="pinInput('0','login')">0</button>
+      <button class="numpad-btn" onclick="pinDelete('login')">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m7-7l-7 7 7 7"/></svg>
+      </button>
+    </div>
+    <p class="dark:text-surface-300 text-surface-300 text-xs mt-6" id="login-lockout"></p>
+    <!-- v1.2: Biometric login button -->
+    <button onclick="biometricAuthenticate()" id="btn-biometric-login" class="hidden mt-4 flex items-center gap-3 px-6 py-3 rounded-2xl dark:bg-surface-700 bg-white border dark:border-surface-700 border-surface-200 transition-all hover:ring-2 ring-vault-500/30 active:scale-95">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="dark:text-vault-400 text-vault-600">
+        <path d="M12 11c0-1.1-.9-2-2-2s-2 .9-2 2c0 2 2 4 2 6"/><path d="M12 11c0-2.2-1.8-4-4-4"/><path d="M12 11c0 3.3-2.7 6-6 6"/>
+        <path d="M12 11c0-3.9-1.8-6-6-6"/><path d="M12 11c0 4.4-3.6 8-8 8"/><path d="M20 11c0-5-4-9-8-9"/>
+        <path d="M20 11c0 5.5-4.5 10-10 10"/><path d="M4 11c0-4.4 3.6-8 8-8"/></svg>
+      <div class="text-left">
+        <p class="text-sm font-medium dark:text-white text-surface-800">Desbloquear con biometría</p>
+        <p class="text-xs dark:text-surface-300 text-surface-300">Huella digital o reconocimiento facial</p>
+      </div>
+    </button>
+    <p class="text-xs mt-2 h-4 dark:text-surface-300 text-surface-300" id="biometric-login-status"></p>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- SCREEN: MAIN APP                             -->
+<!-- ============================================ -->
+<div id="screen-app" class="screen min-h-screen dark:bg-surface-800 bg-surface-50">
+  <!-- Mobile header -->
+  <header class="md:hidden fixed top-0 left-0 right-0 z-30 dark:bg-surface-900/95 bg-white/95 backdrop-blur-md border-b dark:border-surface-700 border-surface-200 px-4 py-3 flex items-center justify-between">
+    <button onclick="toggleSidebar()" class="dark:text-surface-300 text-surface-300 p-1">
+      <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+    </button>
+    <span class="font-bold dark:text-white text-surface-800 flex items-center gap-2">
+      <svg width="20" height="20" viewBox="0 0 64 64" fill="none"><rect width="64" height="64" rx="16" fill="#4263eb"/><path d="M32 16C25.4 16 20 21.4 20 28v4h-2a2 2 0 00-2 2v16a2 2 0 002 2h28a2 2 0 002-2V34a2 2 0 00-2-2h-2v-4c0-6.6-5.4-12-12-12zm6 16H26v-4a6 6 0 1112 0v4z" fill="white"/></svg>
+      SafeKeep
+    </span>
+    <button onclick="lockSession()" class="dark:text-surface-300 text-surface-300 p-1" title="Bloquear">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="14" height="9" rx="2"/><path d="M7 11V7a3 3 0 016 0v4"/></svg>
+    </button>
+  </header>
+
+  <!-- Sidebar overlay (mobile) -->
+  <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <div class="flex min-h-screen">
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="sidebar w-64 h-screen dark:bg-surface-900 bg-white border-r dark:border-surface-700 border-surface-200 flex flex-col sticky top-0 overflow-y-auto">
+      <!-- Brand -->
+      <div class="p-5 flex items-center gap-3 border-b dark:border-surface-700 border-surface-200">
+        <svg width="32" height="32" viewBox="0 0 64 64" fill="none"><rect width="64" height="64" rx="16" fill="#4263eb"/><path d="M32 16C25.4 16 20 21.4 20 28v4h-2a2 2 0 00-2 2v16a2 2 0 002 2h28a2 2 0 002-2V34a2 2 0 00-2-2h-2v-4c0-6.6-5.4-12-12-12zm6 16H26v-4a6 6 0 1112 0v4z" fill="white"/><circle cx="32" cy="42" r="3" fill="#4263eb"/></svg>
+        <div>
+          <h2 class="font-bold dark:text-white text-surface-800 text-lg leading-tight">SafeKeep</h2>
+          <p class="text-xs dark:text-surface-300 text-surface-300">Password Vault</p>
+        </div>
+      </div>
+      <!-- Nav -->
+      <nav class="flex-1 p-3 flex flex-col gap-1">
+        <button onclick="navigateTo('vault')" id="nav-vault" class="nav-btn flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all dark:text-surface-300 text-surface-300 dark:hover:bg-surface-700 hover:bg-surface-100">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="14" height="12" rx="2"/><path d="M6 4V2.5A2.5 2.5 0 0112 2.5V4"/><circle cx="9" cy="10" r="1.5"/></svg>
+          Vault
+        </button>
+        <button onclick="navigateTo('favorites')" id="nav-favorites" class="nav-btn flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all dark:text-surface-300 text-surface-300 dark:hover:bg-surface-700 hover:bg-surface-100">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2l2.3 4.7 5.2.7-3.7 3.7.9 5.1L9 13.7l-4.7 2.5.9-5.1L1.5 7.4l5.2-.7z"/></svg>
+          Favoritos
+        </button>
+        <button onclick="navigateTo('generator')" id="nav-generator" class="nav-btn flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all dark:text-surface-300 text-surface-300 dark:hover:bg-surface-700 hover:bg-surface-100">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 12l4 4L16 6z"/><path d="M9 5l4 4"/></svg>
+          Generador
+        </button>
+        <button onclick="navigateTo('importexport')" id="nav-importexport" class="nav-btn flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all dark:text-surface-300 text-surface-300 dark:hover:bg-surface-700 hover:bg-surface-100">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M6 9l6-6 6 6"/><path d="M3 15h12"/></svg>
+          Import / Export
+        </button>
+        <div class="my-2 border-t dark:border-surface-700 border-surface-200"></div>
+        <button onclick="navigateTo('settings')" id="nav-settings" class="nav-btn flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all dark:text-surface-300 text-surface-300 dark:hover:bg-surface-700 hover:bg-surface-100">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="9" r="3"/><path d="M9 1v2m0 12v2m-5.7-3.3l1.4-1.4m8.6-8.6l1.4-1.4M1 9h2m12 0h2M3.3 3.3l1.4 1.4m8.6 8.6l1.4 1.4"/></svg>
+          Ajustes
+        </button>
+        <!-- v1.1: PWA Install button -->
+        <button onclick="installPWA()" id="btn-install-pwa" class="hidden nav-btn flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-vault-400 hover:bg-vault-500/10">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2v10M5 8l4 4 4-4"/><path d="M2 13v2a1 1 0 001 1h12a1 1 0 001-1v-2"/></svg>
+          Instalar App
+        </button>
+      </nav>
+      <!-- Sidebar footer -->
+      <div class="p-4 border-t dark:border-surface-700 border-surface-200">
+        <button onclick="lockSession()" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-400/10 transition-all">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="10" height="7" rx="1.5"/><path d="M5 8V5.5a3 3 0 016 0V8"/></svg>
+          Bloquear sesión
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 md:p-8 p-4 pt-20 md:pt-8 overflow-y-auto max-w-5xl mx-auto w-full">
+
+      <!-- VIEW: VAULT -->
+      <div id="view-vault" class="view">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 class="text-2xl font-bold dark:text-white text-surface-800">Vault</h1>
+            <p class="dark:text-surface-300 text-surface-300 text-sm mt-1"><span id="vault-count">0</span> credenciales guardadas</p>
+          </div>
+          <button onclick="openEditor()" class="hidden md:flex items-center gap-2 bg-vault-600 hover:bg-vault-700 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-all shadow-lg shadow-vault-600/20">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v12M2 8h12"/></svg>
+            Nueva credencial
+          </button>
+        </div>
+        <!-- Search -->
+        <div class="relative mb-6">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 dark:text-surface-300 text-surface-300" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M14 14l3 3"/></svg>
+          <input id="vault-search" type="text" placeholder="Buscar servicios, usuarios..." oninput="renderVault()" class="w-full pl-10 pr-4 py-3 rounded-xl dark:bg-surface-700 bg-white dark:text-white text-surface-800 dark:border-surface-700 border-surface-200 border dark:placeholder-surface-300 placeholder-surface-300 text-sm outline-none focus:ring-2 focus:ring-vault-500/50 transition-all">
+        </div>
+        <!-- Credentials list -->
+        <div id="vault-list" class="grid gap-3"></div>
+        <!-- Empty state -->
+        <div id="vault-empty" class="hidden flex-col items-center justify-center py-20 text-center">
+          <svg width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5" class="dark:text-surface-700 text-surface-200 mb-4"><rect x="8" y="16" width="48" height="36" rx="4"/><path d="M24 16v-6a8 8 0 0116 0v6"/><circle cx="32" cy="36" r="4"/><path d="M32 40v6"/></svg>
+          <p class="dark:text-surface-300 text-surface-300 text-sm">No hay credenciales aún</p>
+          <button onclick="openEditor()" class="mt-4 text-vault-500 text-sm font-medium hover:underline">+ Agregar primera credencial</button>
+        </div>
+      </div>
+
+      <!-- VIEW: FAVORITES -->
+      <div id="view-favorites" class="view hidden">
+        <h1 class="text-2xl font-bold dark:text-white text-surface-800 mb-1">Favoritos</h1>
+        <p class="dark:text-surface-300 text-surface-300 text-sm mb-6">Tus credenciales marcadas con estrella</p>
+        <div id="fav-list" class="grid gap-3"></div>
+        <div id="fav-empty" class="hidden flex-col items-center justify-center py-20 text-center">
+          <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" class="dark:text-surface-700 text-surface-200 mb-4"><path d="M24 4l6 12.2 13.5 2-9.8 9.5 2.3 13.3L24 34.8 12 41l2.3-13.3-9.8-9.5L18 16.2z"/></svg>
+          <p class="dark:text-surface-300 text-surface-300 text-sm">No tienes favoritos</p>
+        </div>
+      </div>
+
+      <!-- VIEW: GENERATOR -->
+      <div id="view-generator" class="view hidden">
+        <h1 class="text-2xl font-bold dark:text-white text-surface-800 mb-1">Generador de contraseñas</h1>
+        <p class="dark:text-surface-300 text-surface-300 text-sm mb-6">Crea contraseñas seguras personalizadas</p>
+        <div class="dark:bg-surface-900 bg-white rounded-2xl border dark:border-surface-700 border-surface-200 p-6">
+          <!-- Generated password display -->
+          <div class="dark:bg-surface-700 bg-surface-100 rounded-xl p-4 mb-6 flex items-center justify-between gap-3">
+            <code id="gen-output" class="font-mono text-lg dark:text-white text-surface-800 break-all flex-1 select-all">––––––––</code>
+            <button onclick="copyGenerated()" class="shrink-0 p-2 rounded-lg dark:hover:bg-surface-700 hover:bg-surface-200 transition-all dark:text-vault-400 text-vault-600" title="Copiar">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="10" height="10" rx="1.5"/><path d="M4 12V3a1 1 0 011-1h9"/></svg>
+            </button>
+            <button onclick="generatePassword()" class="shrink-0 p-2 rounded-lg dark:hover:bg-surface-700 hover:bg-surface-200 transition-all dark:text-green-400 text-green-600" title="Regenerar">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a7 7 0 0112.9-3.6M16 9a7 7 0 01-12.9 3.6"/><path d="M14 2v4h-4M4 16v-4h4"/></svg>
+            </button>
+          </div>
+          <!-- Strength indicator -->
+          <div class="mb-6">
+            <div class="flex justify-between text-xs mb-1">
+              <span class="dark:text-surface-300 text-surface-300">Fortaleza</span>
+              <span id="gen-strength-label" class="font-medium">—</span>
+            </div>
+            <div class="w-full dark:bg-surface-700 bg-surface-200 rounded-full h-1.5">
+              <div id="gen-strength-bar" class="strength-bar" style="width:0%"></div>
+            </div>
+          </div>
+          <!-- Length slider -->
+          <div class="mb-5">
+            <div class="flex justify-between text-sm mb-2">
+              <span class="dark:text-surface-300 text-surface-300">Longitud</span>
+              <span id="gen-length-val" class="dark:text-white text-surface-800 font-mono font-medium">16</span>
+            </div>
+            <input type="range" id="gen-length" min="8" max="64" value="16" oninput="document.getElementById('gen-length-val').textContent=this.value;generatePassword()" class="w-full accent-vault-500">
+          </div>
+          <!-- Toggles -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label class="flex items-center justify-between dark:bg-surface-700 bg-surface-100 rounded-xl px-4 py-3 cursor-pointer">
+              <span class="text-sm dark:text-surface-300 text-surface-300">Mayúsculas</span>
+              <input type="checkbox" id="gen-upper" checked onchange="generatePassword()" class="sr-only peer">
+              <div class="toggle-track dark:bg-surface-700 bg-surface-200 peer-checked:bg-vault-500 on peer-checked:[&>.toggle-knob]:translate-x-5"><div class="toggle-knob"></div></div>
+            </label>
+            <label class="flex items-center justify-between dark:bg-surface-700 bg-surface-100 rounded-xl px-4 py-3 cursor-pointer">
+              <span class="text-sm dark:text-surface-300 text-surface-300">Minúsculas</span>
+              <input type="checkbox" id="gen-lower" checked onchange="generatePassword()" class="sr-only peer">
+              <div class="toggle-track dark:bg-surface-700 bg-surface-200 peer-checked:bg-vault-500 on peer-checked:[&>.toggle-knob]:translate-x-5"><div class="toggle-knob"></div></div>
+            </label>
+            <label class="flex items-center justify-between dark:bg-surface-700 bg-surface-100 rounded-xl px-4 py-3 cursor-pointer">
+              <span class="text-sm dark:text-surface-300 text-surface-300">Números</span>
+              <input type="checkbox" id="gen-numbers" checked onchange="generatePassword()" class="sr-only peer">
+              <div class="toggle-track dark:bg-surface-700 bg-surface-200 peer-checked:bg-vault-500 on peer-checked:[&>.toggle-knob]:translate-x-5"><div class="toggle-knob"></div></div>
+            </label>
+            <label class="flex items-center justify-between dark:bg-surface-700 bg-surface-100 rounded-xl px-4 py-3 cursor-pointer">
+              <span class="text-sm dark:text-surface-300 text-surface-300">Símbolos</span>
+              <input type="checkbox" id="gen-symbols" checked onchange="generatePassword()" class="sr-only peer">
+              <div class="toggle-track dark:bg-surface-700 bg-surface-200 peer-checked:bg-vault-500 on peer-checked:[&>.toggle-knob]:translate-x-5"><div class="toggle-knob"></div></div>
+            </label>
+            <label class="flex items-center justify-between dark:bg-surface-700 bg-surface-100 rounded-xl px-4 py-3 cursor-pointer sm:col-span-2">
+              <span class="text-sm dark:text-surface-300 text-surface-300">Evitar ambiguos <span class="text-xs opacity-60">(0Oo1lI)</span></span>
+              <input type="checkbox" id="gen-ambiguous" onchange="generatePassword()" class="sr-only peer">
+              <div class="toggle-track dark:bg-surface-700 bg-surface-200 peer-checked:bg-vault-500 peer-checked:[&>.toggle-knob]:translate-x-5"><div class="toggle-knob"></div></div>
+            </label>
+          </div>
+          <button onclick="generatePassword()" class="mt-6 w-full bg-vault-600 hover:bg-vault-700 text-white py-3 rounded-xl text-sm font-medium transition-all shadow-lg shadow-vault-600/20">
+            Generar nueva contraseña
+          </button>
+        </div>
+      </div>
+
+      <!-- VIEW: IMPORT/EXPORT -->
+      <div id="view-importexport" class="view hidden">
+        <h1 class="text-2xl font-bold dark:text-white text-surface-800 mb-1">Import / Export</h1>
+        <p class="dark:text-surface-300 text-surface-300 text-sm mb-6">Respalda o restaura tus credenciales</p>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <!-- Export -->
+          <div class="dark:bg-surface-900 bg-white rounded-2xl border dark:border-surface-700 border-surface-200 p-6">
+            <h3 class="font-semibold dark:text-white text-surface-800 mb-4 flex items-center gap-2">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 15h12M9 3v9M5 8l4 4 4-4"/></svg>
+              Exportar
+            </h3>
+            <div class="flex flex-col gap-2">
+              <button onclick="exportData('json')" class="w-full py-2.5 rounded-xl text-sm font-medium dark:bg-surface-700 bg-surface-100 dark:text-white text-surface-800 hover:ring-2 ring-vault-500/50 transition-all">JSON</button>
+              <button onclick="exportData('csv')" class="w-full py-2.5 rounded-xl text-sm font-medium dark:bg-surface-700 bg-surface-100 dark:text-white text-surface-800 hover:ring-2 ring-vault-500/50 transition-all">CSV</button>
+              <button onclick="exportData('txt')" class="w-full py-2.5 rounded-xl text-sm font-medium dark:bg-surface-700 bg-surface-100 dark:text-white text-surface-800 hover:ring-2 ring-vault-500/50 transition-all">TXT</button>
+            </div>
+          </div>
+          <!-- Import -->
+          <div class="dark:bg-surface-900 bg-white rounded-2xl border dark:border-surface-700 border-surface-200 p-6">
+            <h3 class="font-semibold dark:text-white text-surface-800 mb-4 flex items-center gap-2">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h12M9 15V6M5 10l4-4 4 4"/></svg>
+              Importar
+            </h3>
+            <div class="mb-3">
+              <label class="flex flex-col items-center justify-center dark:bg-surface-700 bg-surface-100 border-2 border-dashed dark:border-surface-700 border-surface-200 rounded-xl py-8 cursor-pointer hover:ring-2 ring-vault-500/50 transition-all">
+                <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" class="dark:text-surface-300 text-surface-300 mb-2"><path d="M4 24v2a2 2 0 002 2h20a2 2 0 002-2v-2M16 4v16M10 10l6-6 6 6"/></svg>
+                <span class="text-sm dark:text-surface-300 text-surface-300">Seleccionar archivo</span>
+                <span class="text-xs dark:text-surface-300 text-surface-300 mt-1">JSON, CSV o TXT</span>
+                <input type="file" id="import-file" accept=".json,.csv,.txt" class="hidden" onchange="handleImport(this)">
+              </label>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="doImport('merge')" id="btn-merge" disabled class="flex-1 py-2.5 rounded-xl text-sm font-medium bg-vault-600 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-vault-700 transition-all">Fusionar</button>
+              <button onclick="doImport('replace')" id="btn-replace" disabled class="flex-1 py-2.5 rounded-xl text-sm font-medium bg-red-500/20 text-red-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-red-500/30 transition-all">Reemplazar</button>
+            </div>
+            <p id="import-status" class="text-xs dark:text-surface-300 text-surface-300 mt-2"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW: SETTINGS -->
+      <div id="view-settings" class="view hidden">
+        <h1 class="text-2xl font-bold dark:text-white text-surface-800 mb-1">Ajustes</h1>
+        <p class="dark:text-surface-300 text-surface-300 text-sm mb-6">Personaliza tu experiencia</p>
+        <div class="flex flex-col gap-4">
+          <!-- Theme -->
+          <div class="dark:bg-surface-900 bg-white rounded-2xl border dark:border-surface-700 border-surface-200 p-5 flex items-center justify-between">
+            <div>
+              <p class="font-medium dark:text-white text-surface-800 text-sm">Tema oscuro</p>
+              <p class="text-xs dark:text-surface-300 text-surface-300 mt-0.5">Alternar entre claro y oscuro</p>
+            </div>
+            <button onclick="toggleTheme()" id="theme-toggle" class="toggle-track dark:bg-vault-500 bg-surface-200">
+              <div class="toggle-knob"></div>
+            </button>
+          </div>
+          <!-- v1.1: Security indicators -->
+          <div class="dark:bg-surface-900 bg-white rounded-2xl border dark:border-surface-700 border-surface-200 p-5">
+            <p class="font-medium dark:text-white text-surface-800 text-sm mb-3">Seguridad</p>
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs dark:text-surface-300 text-surface-300">Cifrado AES-256-GCM</span>
+                <span class="text-xs text-green-400 flex items-center gap-1"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-5"/></svg> Activo</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs dark:text-surface-300 text-surface-300">Derivación PBKDF2 (100k iter.)</span>
+                <span class="text-xs text-green-400 flex items-center gap-1"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-5"/></svg> Activo</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs dark:text-surface-300 text-surface-300">Auto-bloqueo por inactividad</span>
+                <span class="text-xs text-green-400 flex items-center gap-1"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-5"/></svg> 5 min</span>
+              </div>
+              <div class="flex items-center justify-between" id="security-biometric-row">
+                <span class="text-xs dark:text-surface-300 text-surface-300">Autenticación biométrica</span>
+                <span class="text-xs flex items-center gap-1" id="security-biometric-status">—</span>
+              </div>
+            </div>
+          </div>
+          <!-- v1.2: Biometric settings -->
+          <div id="settings-biometric" class="hidden dark:bg-surface-900 bg-white rounded-2xl border dark:border-surface-700 border-surface-200 p-5">
+            <div class="flex items-center gap-3 mb-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="dark:text-vault-400 text-vault-600">
+                <path d="M12 11c0-1.1-.9-2-2-2s-2 .9-2 2c0 2 2 4 2 6"/><path d="M12 11c0-2.2-1.8-4-4-4"/><path d="M12 11c0 3.3-2.7 6-6 6"/>
+                <path d="M12 11c0-3.9-1.8-6-6-6"/><path d="M12 11c0 4.4-3.6 8-8 8"/><path d="M20 11c0-5-4-9-8-9"/>
+                <path d="M20 11c0 5.5-4.5 10-10 10"/><path d="M4 11c0-4.4 3.6-8 8-8"/></svg>
+              <div>
+                <p class="font-medium dark:text-white text-surface-800 text-sm">Autenticación biométrica</p>
+                <p class="text-xs dark:text-surface-300 text-surface-300 mt-0.5" id="biometric-status-text">Huella digital o reconocimiento facial</p>
+              </div>
+            </div>
+            <div id="biometric-toggle-area">
+              <button onclick="toggleBiometric()" id="btn-toggle-biometric" class="w-full py-2.5 rounded-xl text-sm font-medium transition-all bg-vault-600 hover:bg-vault-700 text-white">Activar biometría</button>
+            </div>
+          </div>
+          <!-- Change PIN -->
+          <div class="dark:bg-surface-900 bg-white rounded-2xl border dark:border-surface-700 border-surface-200 p-5">
+            <p class="font-medium dark:text-white text-surface-800 text-sm mb-3">Cambiar PIN maestro</p>
+            <div class="flex flex-col gap-2">
+              <input type="password" id="settings-old-pin" maxlength="6" placeholder="PIN actual" class="w-full px-4 py-2.5 rounded-xl dark:bg-surface-700 bg-surface-100 dark:text-white text-surface-800 text-sm outline-none focus:ring-2 focus:ring-vault-500/50 border dark:border-surface-700 border-surface-200">
+              <input type="password" id="settings-new-pin" maxlength="6" placeholder="Nuevo PIN (6 dígitos)" class="w-full px-4 py-2.5 rounded-xl dark:bg-surface-700 bg-surface-100 dark:text-white text-surface-800 text-sm outline-none focus:ring-2 focus:ring-vault-500/50 border dark:border-surface-700 border-surface-200">
+              <input type="password" id="settings-confirm-pin" maxlength="6" placeholder="Confirmar nuevo PIN" class="w-full px-4 py-2.5 rounded-xl dark:bg-surface-700 bg-surface-100 dark:text-white text-surface-800 text-sm outline-none focus:ring-2 focus:ring-vault-500/50 border dark:border-surface-700 border-surface-200">
+              <button onclick="changePin()" class="mt-1 bg-vault-600 hover:bg-vault-700 text-white py-2.5 rounded-xl text-sm font-medium transition-all">Actualizar PIN</button>
+            </div>
+          </div>
+          <!-- Lock -->
+          <button onclick="lockSession()" class="dark:bg-surface-900 bg-white rounded-2xl border dark:border-surface-700 border-surface-200 p-5 flex items-center gap-3 hover:ring-2 ring-red-500/30 transition-all text-left">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" class="text-red-400"><rect x="3" y="11" width="14" height="9" rx="2"/><path d="M7 11V7a3 3 0 016 0v4"/></svg>
+            <div>
+              <p class="font-medium text-red-400 text-sm">Bloquear sesión</p>
+              <p class="text-xs dark:text-surface-300 text-surface-300 mt-0.5">Volver a la pantalla de PIN</p>
+            </div>
+          </button>
+          <!-- About -->
+          <div class="dark:bg-surface-900 bg-white rounded-2xl border dark:border-surface-700 border-surface-200 p-5 text-center">
+            <p class="font-medium dark:text-white text-surface-800 text-sm">SafeKeep v1.2</p>
+            <p class="text-xs dark:text-surface-300 text-surface-300 mt-1">AES-256-GCM · PBKDF2 · WebAuthn · PWA · Offline-first</p>
+            <p class="text-xs dark:text-surface-300 text-surface-300 mt-0.5">Todos los datos se almacenan localmente y cifrados</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW: EDITOR (Create/Edit credential) -->
+      <div id="view-editor" class="view hidden">
+        <div class="flex items-center gap-3 mb-6">
+          <button onclick="closeEditor()" class="p-2 rounded-lg dark:hover:bg-surface-700 hover:bg-surface-200 transition-all dark:text-surface-300 text-surface-300">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <div>
+            <h1 id="editor-title" class="text-xl font-bold dark:text-white text-surface-800">Nueva credencial</h1>
+          </div>
+        </div>
+        <div class="dark:bg-surface-900 bg-white rounded-2xl border dark:border-surface-700 border-surface-200 p-6">
+          <input type="hidden" id="ed-id">
+          <div class="flex flex-col gap-4">
+            <div>
+              <label class="text-xs font-medium dark:text-surface-300 text-surface-300 mb-1 block">Servicio *</label>
+              <input id="ed-service" type="text" placeholder="ej: Gmail, GitHub..." class="w-full px-4 py-3 rounded-xl dark:bg-surface-700 bg-surface-100 dark:text-white text-surface-800 text-sm outline-none focus:ring-2 focus:ring-vault-500/50 border dark:border-surface-700 border-surface-200">
+            </div>
+            <div>
+              <label class="text-xs font-medium dark:text-surface-300 text-surface-300 mb-1 block">URL</label>
+              <input id="ed-url" type="url" placeholder="https://..." class="w-full px-4 py-3 rounded-xl dark:bg-surface-700 bg-surface-100 dark:text-white text-surface-800 text-sm outline-none focus:ring-2 focus:ring-vault-500/50 border dark:border-surface-700 border-surface-200">
+            </div>
+            <div>
+              <label class="text-xs font-medium dark:text-surface-300 text-surface-300 mb-1 block">Usuario / Email *</label>
+              <input id="ed-username" type="text" placeholder="tu@email.com" class="w-full px-4 py-3 rounded-xl dark:bg-surface-700 bg-surface-100 dark:text-white text-surface-800 text-sm outline-none focus:ring-2 focus:ring-vault-500/50 border dark:border-surface-700 border-surface-200">
+            </div>
+            <div>
+              <label class="text-xs font-medium dark:text-surface-300 text-surface-300 mb-1 block">Contraseña *</label>
+              <div class="relative">
+                <input id="ed-password" type="password" placeholder="••••••••" class="w-full px-4 py-3 pr-24 rounded-xl dark:bg-surface-700 bg-surface-100 dark:text-white text-surface-800 text-sm outline-none focus:ring-2 focus:ring-vault-500/50 border dark:border-surface-700 border-surface-200 font-mono">
+                <div class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+                  <button onclick="toggleEditorPwdVis()" class="p-2 rounded-lg dark:hover:bg-surface-700 hover:bg-surface-200 transition-all dark:text-surface-300 text-surface-300" title="Ver">
+                    <svg id="ed-eye" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2"/></svg>
+                  </button>
+                  <button onclick="insertFromGenerator()" class="p-2 rounded-lg dark:hover:bg-surface-700 hover:bg-surface-200 transition-all dark:text-vault-400 text-vault-600" title="Generar">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 12l4 4L16 6z"/><path d="M9 5l4 4"/></svg>
+                  </button>
+                </div>
+              </div>
+              <!-- Strength meter in editor -->
+              <div class="mt-2">
+                <div class="w-full dark:bg-surface-700 bg-surface-200 rounded-full h-1">
+                  <div id="ed-strength-bar" class="strength-bar" style="width:0%"></div>
+                </div>
+                <p id="ed-strength-label" class="text-xs mt-1 dark:text-surface-300 text-surface-300"></p>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs font-medium dark:text-surface-300 text-surface-300 mb-1 block">Notas</label>
+              <textarea id="ed-notes" rows="3" placeholder="Notas adicionales..." class="w-full px-4 py-3 rounded-xl dark:bg-surface-700 bg-surface-100 dark:text-white text-surface-800 text-sm outline-none focus:ring-2 focus:ring-vault-500/50 border dark:border-surface-700 border-surface-200 resize-none"></textarea>
+            </div>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" id="ed-favorite" class="sr-only peer">
+              <div class="w-5 h-5 rounded border-2 dark:border-surface-300 border-surface-300 flex items-center justify-center peer-checked:bg-vault-500 peer-checked:border-vault-500 transition-all">
+                <svg width="12" height="12" fill="none" stroke="white" stroke-width="3" class="hidden peer-checked:block"><path d="M2 6l3 3 5-5"/></svg>
+              </div>
+              <span class="text-sm dark:text-surface-300 text-surface-300">Marcar como favorito</span>
+            </label>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-2 mt-6">
+            <button onclick="saveCredential()" class="flex-1 bg-vault-600 hover:bg-vault-700 text-white py-3 rounded-xl text-sm font-medium transition-all shadow-lg shadow-vault-600/20">Guardar</button>
+            <button onclick="closeEditor()" class="flex-1 dark:bg-surface-700 bg-surface-200 dark:text-white text-surface-800 py-3 rounded-xl text-sm font-medium transition-all hover:opacity-80">Cancelar</button>
+            <button onclick="deleteFromEditor()" id="btn-delete-editor" class="hidden sm:flex-1 bg-red-500/20 text-red-400 py-3 rounded-xl text-sm font-medium transition-all hover:bg-red-500/30">Eliminar</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- FAB (mobile) -->
+  <button onclick="openEditor()" class="fab bg-vault-600 text-white md:hidden">
+    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+</div>
+
+<!-- ============================================ -->
+<!-- CONFIRM DELETE MODAL                         -->
+<!-- ============================================ -->
+<div id="modal-delete" class="modal-backdrop">
+  <div class="modal-content dark:bg-surface-900 bg-white rounded-2xl border dark:border-surface-700 border-surface-200 p-6 max-w-sm mx-4 w-full">
+    <h3 class="font-bold dark:text-white text-surface-800 mb-2">¿Eliminar credencial?</h3>
+    <p class="text-sm dark:text-surface-300 text-surface-300 mb-6">Esta acción no se puede deshacer. La credencial se eliminará permanentemente.</p>
+    <div class="flex gap-2">
+      <button onclick="confirmDelete(false)" class="flex-1 py-2.5 rounded-xl text-sm font-medium dark:bg-surface-700 bg-surface-200 dark:text-white text-surface-800 transition-all hover:opacity-80">Cancelar</button>
+      <button onclick="confirmDelete(true)" class="flex-1 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white transition-all hover:bg-red-600">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================================ -->
+<!-- JAVASCRIPT – SINGLE SCRIPT (v1.1)            -->
+<!-- ============================================ -->
+<script>
+// ========================================
+// GLOBAL STATE
+// ========================================
+const STORAGE_KEY = 'safekeep';
+const PIN_LENGTH = 6;
+const MAX_ATTEMPTS = 3;
+const LOCKOUT_MS = 30000;
+const INACTIVITY_MS = 5 * 60 * 1000; // v1.1: 5 min auto-lock
+const PBKDF2_ITERATIONS = 100000;     // v1.1: PBKDF2 iterations
+
+let state = {
+  pinBuffer: '',
+  setupStep: 'create', // create | confirm
+  setupFirstPin: '',
+  loginAttempts: 0,
+  lockoutUntil: 0,
+  currentView: 'vault',
+  editingId: null,
+  importData: null,
+  deleteTargetId: null,
+  cryptoKey: null,          // v1.1: AES-GCM key in memory only
+  inactivityTimer: null,    // v1.1: auto-lock timer
+};
+
+// v1.1: PWA install prompt
+let deferredInstallPrompt = null;
+
+// v1.1: Check if Web Crypto API is available (requires HTTPS, localhost, or file://)
+const cryptoAvailable = !!(window.crypto && window.crypto.subtle);
+if (!cryptoAvailable) {
+  console.warn('SafeKeep: crypto.subtle not available. Encryption disabled. Use HTTPS for full security.');
+}
+
+// ========================================
+// STORAGE
+// ========================================
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function getData() {
+  return loadData() || { pin: null, salt: null, theme: 'dark', credentials: [] };
+}
+
+// ========================================
+// CRYPTO LAYER (v1.1)
+// ========================================
+function bufToB64(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+
+function b64ToBuf(b64) {
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf;
+}
+
+function generateSalt() {
+  return bufToB64(crypto.getRandomValues(new Uint8Array(16)));
+}
+
+async function deriveKeyFromPin(pin, saltB64) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(pin), 'PBKDF2', false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: b64ToBuf(saltB64), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function derivePinHash(pin, saltB64) {
+  const enc = new TextEncoder();
+
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(pin),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: enc.encode('verify_' + saltB64), // ✅ CORRECTO
+      iterations: PBKDF2_ITERATIONS,
+      hash: 'SHA-256'
+    },
+    keyMaterial,
+    256
+  );
+
+  return bufToB64(bits);
+}
+
+async function encryptText(plainText) {
+  if (!plainText) return plainText;
+  if (!state.cryptoKey || !cryptoAvailable) return plainText; // fallback: store plain
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder();
+  const cipherBuf = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    state.cryptoKey,
+    enc.encode(plainText)
+  );
+  return { iv: bufToB64(iv), data: bufToB64(cipherBuf) };
+}
+
+async function decryptText(cipherObj) {
+  if (!cipherObj || typeof cipherObj === 'string') return cipherObj || '';
+  if (!cryptoAvailable || !state.cryptoKey) throw new Error('No crypto key');
+  const decBuf = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: b64ToBuf(cipherObj.iv) },
+    state.cryptoKey,
+    b64ToBuf(cipherObj.data)
+  );
+  return new TextDecoder().decode(decBuf);
+}
+
+function isEncrypted(val) {
+  return val && typeof val === 'object' && val.iv && val.data;
+}
+
+// ========================================
+// v1.0 BACKWARD COMPAT: old hash for migration detection
+// ========================================
+function hashPinLegacy(pin) {
+  let hash = 0;
+  const str = 'SK_' + pin + '_SALT2025';
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + c;
+    hash |= 0;
+  }
+  return 'sk_' + Math.abs(hash).toString(36);
+}
+
+// ========================================
+// v1.1: MIGRATION from v1.0
+// ========================================
+async function migrateV1Data(pin) {
+  const data = getData();
+  // Generate new salt
+  const salt = generateSalt();
+  data.salt = salt;
+  // Derive new PBKDF2 hash for verification
+  data.pin = await derivePinHash(pin, salt);
+  // Derive encryption key
+  state.cryptoKey = await deriveKeyFromPin(pin, salt);
+  // Encrypt all plaintext passwords/notes
+  for (let c of data.credentials) {
+    if (typeof c.password === 'string') {
+      c.password = await encryptText(c.password);
+    }
+    if (c.notes && typeof c.notes === 'string') {
+      c.notes = await encryptText(c.notes);
+    }
+  }
+  saveData(data);
+  console.log('SafeKeep: migrated v1.0 → v1.1 (' + data.credentials.length + ' credentials encrypted)');
+}
+
+// ========================================
+// AUTH (PIN)
+// ========================================
+function pinInput(digit, screen) {
+  if (screen === 'login' && Date.now() < state.lockoutUntil) return;
+  if (state.pinBuffer.length >= PIN_LENGTH) return;
+  state.pinBuffer += digit;
+  updatePinDots(screen);
+  if (state.pinBuffer.length === PIN_LENGTH) {
+    setTimeout(() => {
+      if (screen === 'setup') handleSetupPin();
+      else handleLoginPin();
+    }, 200);
+  }
+}
+
+function pinDelete(screen) {
+  if (state.pinBuffer.length === 0) return;
+  state.pinBuffer = state.pinBuffer.slice(0, -1);
+  updatePinDots(screen);
+}
+
+function updatePinDots(screen) {
+  const dots = document.getElementById(`${screen}-dots`);
+  if (!dots) return;
+  const children = dots.children;
+  for (let i = 0; i < PIN_LENGTH; i++) {
+    children[i].classList.toggle('filled', i < state.pinBuffer.length);
+  }
+}
+
+async function handleSetupPin() {
+  if (state.setupStep === 'create') {
+    state.setupFirstPin = state.pinBuffer;
+    state.pinBuffer = '';
+    state.setupStep = 'confirm';
+    document.getElementById('setup-subtitle').textContent = 'Confirma tu PIN';
+    document.getElementById('setup-hint').textContent = 'Repite los 6 dígitos';
+    updatePinDots('setup');
+  } else {
+    if (state.pinBuffer === state.setupFirstPin) {
+      try {
+        const data = getData();
+        if (cryptoAvailable) {
+          const salt = generateSalt();
+          data.salt = salt;
+          data.pin = await derivePinHash(state.pinBuffer, salt);
+          state.cryptoKey = await deriveKeyFromPin(state.pinBuffer, salt);
+        } else {
+          data.pin = hashPinLegacy(state.pinBuffer);
+          data.salt = null;
+        }
+        saveData(data);
+        toast('PIN creado exitosamente', 'success');
+        state.pinBuffer = '';
+        showScreen('screen-app');
+        initApp();
+      } catch (e) {
+        console.error('Setup PIN error:', e);
+        // Fallback to legacy mode
+        const data = getData();
+        data.pin = hashPinLegacy(state.pinBuffer);
+        data.salt = null;
+        saveData(data);
+        toast('PIN creado (modo compatibilidad)', 'success');
+        state.pinBuffer = '';
+        showScreen('screen-app');
+        initApp();
+      }
+    } else {
+      shakeDots('setup');
+      toast('Los PINs no coinciden', 'error');
+      state.setupStep = 'create';
+      state.setupFirstPin = '';
+      state.pinBuffer = '';
+      document.getElementById('setup-subtitle').textContent = 'Crea tu PIN maestro';
+      document.getElementById('setup-hint').textContent = 'Ingresa 6 dígitos';
+      updatePinDots('setup');
+    }
+  }
+}
+
+async function handleLoginPin() {
+  const data = getData();
+  const pin = state.pinBuffer;
+
+  try {
+    // v1.1: Detect v1.0 data (no salt) and migrate
+    if (!data.salt) {
+      if (hashPinLegacy(pin) === data.pin) {
+        state.loginAttempts = 0;
+        state.pinBuffer = '';
+        document.getElementById('login-error').textContent = '';
+        if (cryptoAvailable) {
+          await migrateV1Data(pin);
+          toast('Vault actualizado con cifrado AES-256', 'success');
+        }
+        showScreen('screen-app');
+        initApp();
+        offerBiometricSetup(pin); // v1.2: offer biometric after PIN success
+      } else {
+        loginFail();
+      }
+      return;
+    }
+
+    // v1.1: PBKDF2 verification
+    if (cryptoAvailable) {
+      const hash = await derivePinHash(pin, data.salt);
+      if (hash === data.pin) {
+        state.loginAttempts = 0;
+        state.pinBuffer = '';
+        document.getElementById('login-error').textContent = '';
+        state.cryptoKey = await deriveKeyFromPin(pin, data.salt);
+        showScreen('screen-app');
+        initApp();
+        offerBiometricSetup(pin); // v1.2: offer biometric after PIN success
+      } else {
+        loginFail();
+      }
+    } else {
+      // Fallback: can't verify PBKDF2 without crypto.subtle
+      loginFail();
+      toast('Se requiere HTTPS para cifrado', 'error');
+    }
+  } catch (e) {
+    console.error('Login PIN error:', e);
+    // Try legacy fallback
+    if (!data.salt && hashPinLegacy(pin) === data.pin) {
+      state.loginAttempts = 0;
+      state.pinBuffer = '';
+      showScreen('screen-app');
+      initApp();
+    } else {
+      loginFail();
+      toast('Error de autenticación', 'error');
+    }
+  }
+}
+
+function loginFail() {
+  state.loginAttempts++;
+  shakeDots('login');
+  state.pinBuffer = '';
+  updatePinDots('login');
+  if (state.loginAttempts >= MAX_ATTEMPTS) {
+    state.lockoutUntil = Date.now() + LOCKOUT_MS;
+    state.loginAttempts = 0;
+    document.getElementById('login-error').textContent = '';
+    startLockoutTimer();
+  } else {
+    document.getElementById('login-error').textContent = `PIN incorrecto (${MAX_ATTEMPTS - state.loginAttempts} intentos restantes)`;
+  }
+}
+
+function startLockoutTimer() {
+  const el = document.getElementById('login-lockout');
+  const iv = setInterval(() => {
+    const remaining = Math.max(0, Math.ceil((state.lockoutUntil - Date.now()) / 1000));
+    if (remaining <= 0) {
+      clearInterval(iv);
+      el.textContent = '';
+      return;
+    }
+    el.textContent = `Bloqueado. Intenta en ${remaining}s`;
+  }, 500);
+}
+
+function shakeDots(screen) {
+  const dots = document.getElementById(`${screen}-dots`);
+  dots.classList.add('pin-shake');
+  setTimeout(() => dots.classList.remove('pin-shake'), 600);
+}
+
+// v1.1: Enhanced lockSession with memory cleanup + timer stop
+function lockSession() {
+  state.cryptoKey = null;   // CRITICAL: wipe key from memory
+  state.pinBuffer = '';
+  state.editingId = null;
+  stopInactivityTimer();
+  updatePinDots('login');
+  document.getElementById('login-error').textContent = '';
+  showScreen('screen-login');
+  toggleSidebar(false);
+  updateBiometricUI(); // v1.2: show biometric button if enabled
+}
+
+// v1.1: Change PIN with re-encryption
+async function changePin() {
+  const oldPin = document.getElementById('settings-old-pin').value;
+  const newPin = document.getElementById('settings-new-pin').value;
+  const confirmPin = document.getElementById('settings-confirm-pin').value;
+  const data = getData();
+
+  // Verify old PIN
+  if (!data.salt) { toast('Datos legacy, reloguea primero', 'error'); return; }
+  const oldHash = await derivePinHash(oldPin, data.salt);
+  if (oldHash !== data.pin) { toast('PIN actual incorrecto', 'error'); return; }
+  if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) { toast('El PIN debe ser de 6 dígitos', 'error'); return; }
+  if (newPin !== confirmPin) { toast('Los PINs no coinciden', 'error'); return; }
+
+  try {
+    // Decrypt all with old key
+    const oldKey = state.cryptoKey;
+    const plaintexts = [];
+    for (const c of data.credentials) {
+      const pw = isEncrypted(c.password) ? await decryptText(c.password) : (c.password || '');
+      const nt = isEncrypted(c.notes) ? await decryptText(c.notes) : (c.notes || '');
+      plaintexts.push({ pw, nt });
+    }
+
+    // Generate new salt + key
+    const newSalt = generateSalt();
+    data.salt = newSalt;
+    data.pin = await derivePinHash(newPin, newSalt);
+    state.cryptoKey = await deriveKeyFromPin(newPin, newSalt);
+
+    // Re-encrypt all with new key
+    for (let i = 0; i < data.credentials.length; i++) {
+      data.credentials[i].password = await encryptText(plaintexts[i].pw);
+      if (plaintexts[i].nt) {
+        data.credentials[i].notes = await encryptText(plaintexts[i].nt);
+      }
+    }
+
+    saveData(data);
+    toast('PIN actualizado y datos re-cifrados', 'success');
+    // v1.2: Invalidate biometric (wrapped PIN is now stale)
+    if (isBiometricEnabled()) {
+      removeBiometricData();
+      toast('Reconfigura la biometría con el nuevo PIN', 'info');
+      updateBiometricUI();
+    }
+    // Reset biometric offer flag
+    const freshData = getData();
+    freshData.biometricOffered = false;
+    saveData(freshData);
+  } catch (e) {
+    toast('Error al cambiar PIN', 'error');
+    console.error('changePin error:', e);
+    return;
+  }
+
+  document.getElementById('settings-old-pin').value = '';
+  document.getElementById('settings-new-pin').value = '';
+  document.getElementById('settings-confirm-pin').value = '';
+}
+
+// ========================================
+// v1.1: INACTIVITY AUTO-LOCK
+// ========================================
+function startInactivityTimer() {
+  stopInactivityTimer();
+  state.inactivityTimer = setTimeout(() => {
+    if (document.getElementById('screen-app').classList.contains('active')) {
+      toast('Sesión bloqueada por inactividad', 'info');
+      lockSession();
+    }
+  }, INACTIVITY_MS);
+}
+
+function resetInactivityTimer() {
+  if (document.getElementById('screen-app').classList.contains('active')) {
+    startInactivityTimer();
+  }
+}
+
+function stopInactivityTimer() {
+  if (state.inactivityTimer) {
+    clearTimeout(state.inactivityTimer);
+    state.inactivityTimer = null;
+  }
+}
+
+// Activity listeners
+['mousemove', 'keydown', 'touchstart', 'click', 'scroll'].forEach(evt => {
+  document.addEventListener(evt, resetInactivityTimer, { passive: true });
+});
+
+// ========================================
+// SCREEN MANAGEMENT
+// ========================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById(id);
+  if (target) target.classList.add('active');
+  // Start/stop inactivity timer based on screen
+  if (id === 'screen-app') startInactivityTimer();
+  else stopInactivityTimer();
+}
+
+// ========================================
+// VAULT CRUD (v1.1: encrypt on save)
+// ========================================
+async function saveCredential() {
+  const service = document.getElementById('ed-service').value.trim();
+  const username = document.getElementById('ed-username').value.trim();
+  const password = document.getElementById('ed-password').value;
+
+  if (!service || !username || !password) {
+    toast('Completa los campos obligatorios', 'error');
+    return;
+  }
+
+  if (cryptoAvailable && !state.cryptoKey) { toast('Sesión expirada', 'error'); lockSession(); return; }
+
+  const data = getData();
+  const now = new Date().toISOString();
+  const encPassword = await encryptText(password);
+  const notesVal = document.getElementById('ed-notes').value.trim();
+  const encNotes = notesVal ? await encryptText(notesVal) : '';
+
+  if (state.editingId) {
+    const idx = data.credentials.findIndex(c => c.id === state.editingId);
+    if (idx >= 0) {
+      data.credentials[idx] = {
+        ...data.credentials[idx],
+        service,
+        url: document.getElementById('ed-url').value.trim(),
+        username,
+        password: encPassword,
+        notes: encNotes,
+        favorite: document.getElementById('ed-favorite').checked,
+        updatedAt: now,
+      };
+    }
+  } else {
+    data.credentials.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+      service,
+      url: document.getElementById('ed-url').value.trim(),
+      username,
+      password: encPassword,
+      notes: encNotes,
+      favorite: document.getElementById('ed-favorite').checked,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  saveData(data);
+  toast(state.editingId ? 'Credencial actualizada' : 'Credencial guardada', 'success');
+  closeEditor();
+  renderVault();
+}
+
+function deleteCred(id) {
+  state.deleteTargetId = id;
+  document.getElementById('modal-delete').classList.add('show');
+}
+
+function confirmDelete(yes) {
+  document.getElementById('modal-delete').classList.remove('show');
+  if (!yes || !state.deleteTargetId) return;
+  const data = getData();
+  data.credentials = data.credentials.filter(c => c.id !== state.deleteTargetId);
+  saveData(data);
+  state.deleteTargetId = null;
+  toast('Credencial eliminada', 'success');
+  if (state.editingId) closeEditor();
+  renderVault();
+}
+
+function toggleFavorite(id) {
+  const data = getData();
+  const c = data.credentials.find(x => x.id === id);
+  if (c) { c.favorite = !c.favorite; saveData(data); renderVault(); renderFavorites(); }
+}
+
+// ========================================
+// EDITOR (v1.1: decrypt on open)
+// ========================================
+async function openEditor(id) {
+  state.editingId = id || null;
+  const data = getData();
+
+  document.getElementById('ed-service').value = '';
+  document.getElementById('ed-url').value = '';
+  document.getElementById('ed-username').value = '';
+  document.getElementById('ed-password').value = '';
+  document.getElementById('ed-password').type = 'password';
+  document.getElementById('ed-notes').value = '';
+  document.getElementById('ed-favorite').checked = false;
+  document.getElementById('ed-id').value = '';
+  document.getElementById('ed-strength-bar').style.width = '0%';
+  document.getElementById('ed-strength-label').textContent = '';
+
+  if (id) {
+    const c = data.credentials.find(x => x.id === id);
+    if (c) {
+      try {
+        const plainPwd = isEncrypted(c.password) ? await decryptText(c.password) : (c.password || '');
+        const plainNotes = isEncrypted(c.notes) ? await decryptText(c.notes) : (c.notes || '');
+        document.getElementById('ed-service').value = c.service || '';
+        document.getElementById('ed-url').value = c.url || '';
+        document.getElementById('ed-username').value = c.username || '';
+        document.getElementById('ed-password').value = plainPwd;
+        document.getElementById('ed-notes').value = plainNotes;
+        document.getElementById('ed-favorite').checked = !!c.favorite;
+        document.getElementById('ed-id').value = c.id;
+        updateEditorStrength();
+      } catch (e) {
+        console.error('Editor decrypt error:', e);
+        if (cryptoAvailable) {
+          toast('Error al descifrar, sesión expirada', 'error');
+          lockSession();
+          return;
+        }
+        // Fallback: show raw data
+        document.getElementById('ed-service').value = c.service || '';
+        document.getElementById('ed-url').value = c.url || '';
+        document.getElementById('ed-username').value = c.username || '';
+        document.getElementById('ed-password').value = typeof c.password === 'string' ? c.password : '[cifrado]';
+        document.getElementById('ed-notes').value = typeof c.notes === 'string' ? c.notes : '';
+        document.getElementById('ed-favorite').checked = !!c.favorite;
+        document.getElementById('ed-id').value = c.id;
+      }
+    }
+    document.getElementById('editor-title').textContent = 'Editar credencial';
+    document.getElementById('btn-delete-editor').classList.remove('hidden');
+  } else {
+    document.getElementById('editor-title').textContent = 'Nueva credencial';
+    document.getElementById('btn-delete-editor').classList.add('hidden');
+  }
+
+  navigateTo('editor');
+  toggleSidebar(false);
+}
+
+function closeEditor() {
+  state.editingId = null;
+  navigateTo('vault');
+}
+
+function deleteFromEditor() {
+  if (state.editingId) deleteCred(state.editingId);
+}
+
+function toggleEditorPwdVis() {
+  const el = document.getElementById('ed-password');
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function insertFromGenerator() {
+  const pwd = buildPassword();
+  document.getElementById('ed-password').value = pwd;
+  document.getElementById('ed-password').type = 'text';
+  updateEditorStrength();
+  toast('Contraseña generada', 'success');
+}
+
+document.addEventListener('input', e => {
+  if (e.target.id === 'ed-password') updateEditorStrength();
+});
+
+function updateEditorStrength() {
+  const pwd = document.getElementById('ed-password').value;
+  const s = calcStrength(pwd);
+  document.getElementById('ed-strength-bar').style.width = s.percent + '%';
+  document.getElementById('ed-strength-bar').style.background = s.color;
+  document.getElementById('ed-strength-label').textContent = s.label;
+  document.getElementById('ed-strength-label').style.color = s.color;
+}
+
+// ========================================
+// PASSWORD GENERATOR
+// ========================================
+function buildPassword() {
+  const len = parseInt(document.getElementById('gen-length').value);
+  const upper = document.getElementById('gen-upper').checked;
+  const lower = document.getElementById('gen-lower').checked;
+  const numbers = document.getElementById('gen-numbers').checked;
+  const symbols = document.getElementById('gen-symbols').checked;
+  const noAmbiguous = document.getElementById('gen-ambiguous').checked;
+
+  let chars = '';
+  const ambiguous = '0Oo1lI';
+  if (upper) { let c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; if (noAmbiguous) c = c.split('').filter(x => !ambiguous.includes(x)).join(''); chars += c; }
+  if (lower) { let c = 'abcdefghijklmnopqrstuvwxyz'; if (noAmbiguous) c = c.split('').filter(x => !ambiguous.includes(x)).join(''); chars += c; }
+  if (numbers) { let c = '0123456789'; if (noAmbiguous) c = c.split('').filter(x => !ambiguous.includes(x)).join(''); chars += c; }
+  if (symbols) chars += '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+  if (!chars) chars = 'abcdefghijklmnopqrstuvwxyz';
+
+  const arr = new Uint32Array(len);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, x => chars[x % chars.length]).join('');
+}
+
+function generatePassword() {
+  const pwd = buildPassword();
+  document.getElementById('gen-output').textContent = pwd;
+  const s = calcStrength(pwd);
+  document.getElementById('gen-strength-bar').style.width = s.percent + '%';
+  document.getElementById('gen-strength-bar').style.background = s.color;
+  document.getElementById('gen-strength-label').textContent = s.label;
+  document.getElementById('gen-strength-label').style.color = s.color;
+}
+
+function copyGenerated() {
+  const text = document.getElementById('gen-output').textContent;
+  if (!text || text === '––––––––') return;
+  copyToClipboard(text);
+  toast('Contraseña copiada', 'success');
+}
+
+function calcStrength(pwd) {
+  if (!pwd) return { percent: 0, label: '', color: '#64748b' };
+  let score = 0;
+  if (pwd.length >= 8) score++;
+  if (pwd.length >= 12) score++;
+  if (pwd.length >= 16) score++;
+  if (pwd.length >= 24) score++;
+  if (/[a-z]/.test(pwd)) score++;
+  if (/[A-Z]/.test(pwd)) score++;
+  if (/\d/.test(pwd)) score++;
+  if (/[^a-zA-Z\d]/.test(pwd)) score++;
+  if (new Set(pwd).size >= pwd.length * 0.6) score++;
+
+  const levels = [
+    { min: 0, label: 'Muy débil', color: '#ef4444', percent: 10 },
+    { min: 2, label: 'Débil', color: '#f97316', percent: 25 },
+    { min: 4, label: 'Aceptable', color: '#eab308', percent: 50 },
+    { min: 6, label: 'Fuerte', color: '#22c55e', percent: 75 },
+    { min: 8, label: 'Muy fuerte', color: '#10b981', percent: 100 },
+  ];
+
+  for (let i = levels.length - 1; i >= 0; i--) {
+    if (score >= levels[i].min) return levels[i];
+  }
+  return levels[0];
+}
+
+// ========================================
+// IMPORT / EXPORT (v1.1: decrypt on export, encrypt on import)
+// ========================================
+async function exportData(format) {
+  if (cryptoAvailable && !state.cryptoKey) { toast('Sesión expirada', 'error'); lockSession(); return; }
+
+  const data = getData();
+  // Decrypt all credentials for export
+  const creds = [];
+  for (const c of data.credentials) {
+    try {
+      creds.push({
+        ...c,
+        password: isEncrypted(c.password) ? await decryptText(c.password) : (c.password || ''),
+        notes: isEncrypted(c.notes) ? await decryptText(c.notes) : (c.notes || ''),
+      });
+    } catch (e) {
+      toast('Error al descifrar datos', 'error');
+      lockSession();
+      return;
+    }
+  }
+
+  let content, filename, type;
+
+  if (format === 'json') {
+    content = JSON.stringify(creds.map(c => ({
+      service: c.service, url: c.url, username: c.username, password: c.password,
+      notes: c.notes, favorite: c.favorite, createdAt: c.createdAt, updatedAt: c.updatedAt
+    })), null, 2);
+    filename = 'safekeep_export.json';
+    type = 'application/json';
+  } else if (format === 'csv') {
+    const header = 'service,url,username,password,notes,favorite,createdAt,updatedAt';
+    const rows = creds.map(c =>
+      [c.service, c.url, c.username, c.password, c.notes, c.favorite, c.createdAt, c.updatedAt]
+        .map(v => `"${String(v || '').replace(/"/g, '""')}"`)
+        .join(',')
+    );
+    content = [header, ...rows].join('\n');
+    filename = 'safekeep_export.csv';
+    type = 'text/csv';
+  } else {
+    content = creds.map(c =>
+      `[${c.service}]\nURL: ${c.url || ''}\nUser: ${c.username}\nPass: ${c.password}\nNotes: ${c.notes || ''}\nFav: ${c.favorite ? 'Yes' : 'No'}\n`
+    ).join('\n---\n\n');
+    filename = 'safekeep_export.txt';
+    type = 'text/plain';
+  }
+
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  toast(`Exportado como ${format.toUpperCase()}`, 'success');
+}
+
+function handleImport(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const text = reader.result;
+      const ext = file.name.split('.').pop().toLowerCase();
+      let parsed = [];
+
+      if (ext === 'json') {
+        const arr = JSON.parse(text);
+        if (!Array.isArray(arr)) throw new Error('Invalid JSON');
+        parsed = arr.filter(c => c.service && c.username && c.password);
+      } else if (ext === 'csv') {
+        const lines = text.split('\n').filter(l => l.trim());
+        const header = lines[0].toLowerCase();
+        for (let i = 1; i < lines.length; i++) {
+          const vals = lines[i].match(/("([^"]*("")?)*"|[^,]*)/g).map(v => v.replace(/^"|"$/g, '').replace(/""/g, '"'));
+          if (vals.length >= 4) {
+            parsed.push({ service: vals[0], url: vals[1], username: vals[2], password: vals[3], notes: vals[4] || '', favorite: vals[5] === 'true' });
+          }
+        }
+      } else {
+        const blocks = text.split('---');
+        blocks.forEach(b => {
+          const lines = b.trim().split('\n');
+          const obj = {};
+          lines.forEach(l => {
+            const m = l.match(/^\[(.+)\]$/);
+            if (m) obj.service = m[1];
+            else if (l.startsWith('User:')) obj.username = l.slice(5).trim();
+            else if (l.startsWith('Pass:')) obj.password = l.slice(5).trim();
+            else if (l.startsWith('URL:')) obj.url = l.slice(4).trim();
+            else if (l.startsWith('Notes:')) obj.notes = l.slice(6).trim();
+            else if (l.startsWith('Fav:')) obj.favorite = l.slice(4).trim() === 'Yes';
+          });
+          if (obj.service && obj.username && obj.password) parsed.push(obj);
+        });
+      }
+
+      if (parsed.length === 0) {
+        toast('No se encontraron credenciales válidas', 'error');
+        return;
+      }
+
+      state.importData = parsed;
+      document.getElementById('import-status').textContent = `${parsed.length} credenciales listas para importar`;
+      document.getElementById('btn-merge').disabled = false;
+      document.getElementById('btn-replace').disabled = false;
+    } catch (e) {
+      toast('Error al leer el archivo', 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function doImport(mode) {
+  if (!state.importData || !state.importData.length) return;
+  if (cryptoAvailable && !state.cryptoKey) { toast('Sesión expirada', 'error'); lockSession(); return; }
+
+  const data = getData();
+  const now = new Date().toISOString();
+
+  const newCreds = [];
+  for (const c of state.importData) {
+    newCreds.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+      service: c.service || '',
+      url: c.url || '',
+      username: c.username || '',
+      password: await encryptText(c.password || ''),
+      notes: c.notes ? await encryptText(c.notes) : '',
+      favorite: !!c.favorite,
+      createdAt: c.createdAt || now,
+      updatedAt: c.updatedAt || now,
+    });
+  }
+
+  if (mode === 'replace') {
+    data.credentials = newCreds;
+  } else {
+    data.credentials = [...data.credentials, ...newCreds];
+  }
+
+  saveData(data);
+  state.importData = null;
+  document.getElementById('btn-merge').disabled = true;
+  document.getElementById('btn-replace').disabled = true;
+  document.getElementById('import-status').textContent = '';
+  document.getElementById('import-file').value = '';
+  toast(`${newCreds.length} credenciales importadas (cifradas)`, 'success');
+  renderVault();
+}
+
+// ========================================
+// UI RENDER
+// ========================================
+function renderVault() {
+  const data = getData();
+  const search = (document.getElementById('vault-search')?.value || '').toLowerCase();
+  let creds = data.credentials;
+  if (search) {
+    creds = creds.filter(c =>
+      (c.service || '').toLowerCase().includes(search) ||
+      (c.username || '').toLowerCase().includes(search) ||
+      (c.url || '').toLowerCase().includes(search)
+    );
+  }
+  // Sort: favorites first, then by updatedAt desc
+  creds.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0) || new Date(b.updatedAt) - new Date(a.updatedAt));
+
+  document.getElementById('vault-count').textContent = data.credentials.length;
+  const list = document.getElementById('vault-list');
+  const empty = document.getElementById('vault-empty');
+
+  if (creds.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    empty.classList.add('flex');
+    return;
+  }
+
+  empty.classList.add('hidden');
+  empty.classList.remove('flex');
+
+  list.innerHTML = creds.map(c => `
+    <div class="cred-card dark:bg-surface-900 bg-white rounded-xl border dark:border-surface-700 border-surface-200 p-4 fade-in">
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0" style="background:${serviceColor(c.service)}">
+          ${(c.service || '?')[0].toUpperCase()}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <h3 class="font-semibold dark:text-white text-surface-800 text-sm truncate">${esc(c.service)}</h3>
+            ${c.favorite ? '<svg width="14" height="14" fill="#eab308" stroke="#eab308" stroke-width="1"><path d="M7 1l1.8 3.6 4 .6-2.9 2.8.7 3.9L7 10.1 3.4 12l.7-3.9L1.2 5.2l4-.6z"/></svg>' : ''}
+          </div>
+          <p class="text-xs dark:text-surface-300 text-surface-300 truncate">${esc(c.username)}</p>
+          <div class="flex items-center gap-1 mt-1.5">
+            <code class="text-xs font-mono dark:text-surface-300 text-surface-300 truncate max-w-[140px]" id="pw-${c.id}">••••••••</code>
+          </div>
+        </div>
+        <div class="flex items-center gap-0.5 shrink-0">
+          <button onclick="togglePwdVisibility('${c.id}')" class="p-1.5 rounded-lg dark:hover:bg-surface-700 hover:bg-surface-200 transition-all dark:text-surface-300 text-surface-300" title="Ver/ocultar">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 7s2.5-4 6-4 6 4 6 4-2.5 4-6 4-6-4-6-4z"/><circle cx="7" cy="7" r="1.5"/></svg>
+          </button>
+          <button onclick="copyPassword('${c.id}')" class="p-1.5 rounded-lg dark:hover:bg-surface-700 hover:bg-surface-200 transition-all dark:text-vault-400 text-vault-600" title="Copiar">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="8" height="8" rx="1"/><path d="M3 10V2.5a.5.5 0 01.5-.5H10"/></svg>
+          </button>
+          <button onclick="toggleFavorite('${c.id}')" class="p-1.5 rounded-lg dark:hover:bg-surface-700 hover:bg-surface-200 transition-all ${c.favorite ? 'text-yellow-400' : 'dark:text-surface-300 text-surface-300'}" title="Favorito">
+            <svg width="14" height="14" fill="${c.favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M7 1l1.8 3.6 4 .6-2.9 2.8.7 3.9L7 10.1 3.4 12l.7-3.9L1.2 5.2l4-.6z"/></svg>
+          </button>
+          <button onclick="openEditor('${c.id}')" class="p-1.5 rounded-lg dark:hover:bg-surface-700 hover:bg-surface-200 transition-all dark:text-surface-300 text-surface-300" title="Editar">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2l2 2-7 7H3V9z"/></svg>
+          </button>
+          <button onclick="deleteCred('${c.id}')" class="p-1.5 rounded-lg dark:hover:bg-surface-700 hover:bg-surface-200 transition-all text-red-400" title="Eliminar">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4h10M5 4V2h4v2M4 4v8a1 1 0 001 1h4a1 1 0 001-1V4"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderFavorites() {
+  const data = getData();
+  const favs = data.credentials.filter(c => c.favorite);
+  const list = document.getElementById('fav-list');
+  const empty = document.getElementById('fav-empty');
+
+  if (favs.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    empty.classList.add('flex');
+    return;
+  }
+  empty.classList.add('hidden');
+  empty.classList.remove('flex');
+
+  // Reuse same card template
+  list.innerHTML = favs.map(c => `
+    <div class="cred-card dark:bg-surface-900 bg-white rounded-xl border dark:border-surface-700 border-surface-200 p-4 fade-in">
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0" style="background:${serviceColor(c.service)}">
+          ${(c.service || '?')[0].toUpperCase()}
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="font-semibold dark:text-white text-surface-800 text-sm truncate">${esc(c.service)}</h3>
+          <p class="text-xs dark:text-surface-300 text-surface-300 truncate">${esc(c.username)}</p>
+        </div>
+        <div class="flex items-center gap-0.5 shrink-0">
+          <button onclick="copyPassword('${c.id}')" class="p-1.5 rounded-lg dark:hover:bg-surface-700 hover:bg-surface-200 transition-all dark:text-vault-400 text-vault-600" title="Copiar">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="8" height="8" rx="1"/><path d="M3 10V2.5a.5.5 0 01.5-.5H10"/></svg>
+          </button>
+          <button onclick="openEditor('${c.id}')" class="p-1.5 rounded-lg dark:hover:bg-surface-700 hover:bg-surface-200 transition-all dark:text-surface-300 text-surface-300" title="Editar">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2l2 2-7 7H3V9z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ========================================
+// HELPERS (v1.1: decrypt-on-demand)
+// ========================================
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+function serviceColor(name) {
+  const colors = ['#4263eb','#ae3ec9','#0ca678','#f76707','#e64980','#1098ad','#5c940d','#e8590c','#6741d9','#2b8a3e'];
+  let h = 0;
+  for (let i = 0; i < (name||'').length; i++) h = ((h << 5) - h) + name.charCodeAt(i);
+  return colors[Math.abs(h) % colors.length];
+}
+
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+  document.body.removeChild(ta);
+}
+
+// v1.1: Decrypt on copy
+async function copyPassword(id) {
+  if (cryptoAvailable && !state.cryptoKey) { toast('Sesión expirada', 'error'); lockSession(); return; }
+  const data = getData();
+  const c = data.credentials.find(x => x.id === id);
+  if (!c) return;
+  try {
+    const plain = isEncrypted(c.password) ? await decryptText(c.password) : (c.password || '');
+    copyToClipboard(plain);
+    toast('Contraseña copiada', 'success');
+  } catch (e) {
+    toast('Error al descifrar', 'error');
+    lockSession();
+  }
+}
+
+// v1.1: Decrypt on reveal, auto-hide after 10s
+async function togglePwdVisibility(id) {
+  const el = document.getElementById('pw-' + id);
+  if (!el) return;
+
+  // If currently visible, hide it
+  if (el.dataset.visible === 'true') {
+    el.textContent = '••••••••';
+    el.dataset.visible = 'false';
+    return;
+  }
+
+  if (cryptoAvailable && !state.cryptoKey) { toast('Sesión expirada', 'error'); lockSession(); return; }
+  const data = getData();
+  const c = data.credentials.find(x => x.id === id);
+  if (!c) return;
+
+  try {
+    const plain = isEncrypted(c.password) ? await decryptText(c.password) : (c.password || '');
+    el.textContent = plain;
+    el.dataset.visible = 'true';
+    // Auto-hide after 10s
+    setTimeout(() => {
+      if (el.dataset.visible === 'true') {
+        el.textContent = '••••••••';
+        el.dataset.visible = 'false';
+      }
+    }, 10000);
+  } catch (e) {
+    toast('Error al descifrar', 'error');
+    lockSession();
+  }
+}
+
+// ========================================
+// NAVIGATION
+// ========================================
+function navigateTo(view) {
+  state.currentView = view;
+  document.querySelectorAll('.view').forEach(v => { v.classList.add('hidden'); v.style.display = 'none'; });
+  const target = document.getElementById('view-' + view);
+  if (target) { target.classList.remove('hidden'); target.style.display = 'block'; }
+
+  // Active nav
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.classList.remove('dark:bg-surface-700', 'bg-surface-100', 'dark:text-white', 'text-surface-800');
+  });
+  const navBtn = document.getElementById('nav-' + view);
+  if (navBtn) navBtn.classList.add('dark:bg-surface-700', 'bg-surface-100', 'dark:text-white', 'text-surface-800');
+
+  // Render on navigate
+  if (view === 'vault') renderVault();
+  if (view === 'favorites') renderFavorites();
+  if (view === 'generator') generatePassword();
+
+  toggleSidebar(false);
+}
+
+// ========================================
+// SIDEBAR (mobile)
+// ========================================
+function toggleSidebar(forceState) {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  const isOpen = sidebar.classList.contains('open');
+  const shouldOpen = forceState !== undefined ? forceState : !isOpen;
+
+  if (shouldOpen) {
+    sidebar.classList.add('open');
+    overlay.classList.add('show');
+  } else {
+    sidebar.classList.remove('open');
+    overlay.classList.remove('show');
+  }
+}
+
+// ========================================
+// DARK / LIGHT MODE
+// ========================================
+function applyTheme(theme) {
+  const html = document.documentElement;
+  html.classList.remove('dark', 'light');
+  html.classList.add(theme);
+  document.body.classList.remove('dark', 'light');
+  document.body.classList.add(theme);
+  // Update meta theme-color
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = theme === 'dark' ? '#0f172a' : '#f8fafc';
+  // Update toggle
+  const toggle = document.getElementById('theme-toggle');
+  if (toggle) {
+    if (theme === 'dark') toggle.classList.add('on');
+    else toggle.classList.remove('on');
+  }
+}
+
+function toggleTheme() {
+  const data = getData();
+  data.theme = data.theme === 'dark' ? 'light' : 'dark';
+  saveData(data);
+  applyTheme(data.theme);
+}
+
+// ========================================
+// TOAST
+// ========================================
+function toast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const colors = {
+    success: 'bg-green-500',
+    error: 'bg-red-500',
+    info: 'bg-vault-600',
+  };
+  const icons = {
+    success: '<svg width="16" height="16" fill="none" stroke="white" stroke-width="2"><path d="M3 8.5l3.5 3.5L13 5"/></svg>',
+    error: '<svg width="16" height="16" fill="none" stroke="white" stroke-width="2"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
+    info: '<svg width="16" height="16" fill="none" stroke="white" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3M8 10.5v.5"/></svg>',
+  };
+
+  const el = document.createElement('div');
+  el.className = `toast-enter flex items-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-medium shadow-xl pointer-events-auto ${colors[type] || colors.info}`;
+  el.innerHTML = `${icons[type] || icons.info} <span>${message}</span>`;
+  container.appendChild(el);
+
+  setTimeout(() => {
+    el.classList.remove('toast-enter');
+    el.classList.add('toast-exit');
+    setTimeout(() => el.remove(), 300);
+  }, 2800);
+}
+
+// ========================================
+// PWA REGISTRATION (v1.1: improved cache + install button)
+// ========================================
+function registerPWA() {
+  // Inline manifest
+  const manifest = {
+    name: 'SafeKeep',
+    short_name: 'SafeKeep',
+    description: 'Password Vault – Offline & Secure',
+    start_url: './',
+    display: 'standalone',
+    background_color: '#0f172a',
+    theme_color: '#0f172a',
+    icons: [
+      { src: generateIcon(192), sizes: '192x192', type: 'image/png' },
+      { src: generateIcon(512), sizes: '512x512', type: 'image/png' },
+    ]
+  };
+
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = url;
+  document.head.appendChild(link);
+
+  // Apple touch icon
+  const appleIcon = document.createElement('link');
+  appleIcon.rel = 'apple-touch-icon';
+  appleIcon.href = generateIcon(180);
+  document.head.appendChild(appleIcon);
+
+  // v1.1: Improved Service Worker with better cache strategy
+  if ('serviceWorker' in navigator) {
+    const swCode = `
+const CACHE_NAME = 'safekeep-v1.2';
+const PRECACHE = [
+  './',
+  'https://cdn.tailwindcss.com',
+  'https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap'
+];
+
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(c => c.addAll(PRECACHE))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+  // Network-first for HTML / navigation
+  if (e.request.mode === 'navigate' || e.request.destination === 'document') {
+    e.respondWith(
+      fetch(e.request)
+        .then(resp => {
+          if (resp.status === 200) {
+            const clone = resp.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+          }
+          return resp;
+        })
+        .catch(() => caches.match('./'))
+    );
+    return;
+  }
+  // Cache-first for assets (fonts, CDN)
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      if (cached) return cached;
+      return fetch(e.request).then(resp => {
+        if (resp.status === 200) {
+          const clone = resp.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        }
+        return resp;
+      }).catch(() => caches.match('./'));
+    })
+  );
+});`;
+
+    const swBlob = new Blob([swCode], { type: 'application/javascript' });
+    const swUrl = URL.createObjectURL(swBlob);
+
+    navigator.serviceWorker.register(swUrl).then(reg => {
+      console.log('SafeKeep SW v1.2 registered');
+    }).catch(err => {
+      console.log('SW registration limited (Blob URL):', err.message);
+    });
+  }
+}
+
+function generateIcon(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  // Background
+  const r = size * 0.15;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, size, size, r);
+  ctx.fillStyle = '#4263eb';
+  ctx.fill();
+  // Lock body
+  const cx = size / 2, bw = size * 0.44, bh = size * 0.36;
+  const bx = cx - bw / 2, by = size * 0.46;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, size * 0.04);
+  ctx.fillStyle = 'white';
+  ctx.fill();
+  // Lock shackle
+  const sw = size * 0.28, sh = size * 0.2;
+  ctx.beginPath();
+  ctx.arc(cx, by, sw / 2, Math.PI, 0);
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = size * 0.05;
+  ctx.stroke();
+  // Keyhole
+  ctx.beginPath();
+  ctx.arc(cx, by + bh * 0.4, size * 0.04, 0, Math.PI * 2);
+  ctx.fillStyle = '#4263eb';
+  ctx.fill();
+  ctx.fillRect(cx - size * 0.015, by + bh * 0.4, size * 0.03, bh * 0.3);
+
+  return canvas.toDataURL('image/png');
+}
+
+// v1.1: PWA Install button
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('btn-install-pwa');
+  if (btn) btn.classList.remove('hidden');
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('btn-install-pwa');
+  if (btn) btn.classList.add('hidden');
+  toast('SafeKeep instalada', 'success');
+});
+
+function installPWA() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(result => {
+      deferredInstallPrompt = null;
+      const btn = document.getElementById('btn-install-pwa');
+      if (btn) btn.classList.add('hidden');
+      if (result.outcome === 'accepted') {
+        toast('Instalando SafeKeep...', 'success');
+      }
+    });
+  } else {
+    toast('Usa el menú del navegador para instalar', 'info');
+  }
+}
+
+// ========================================
+// v1.2: BIOMETRIC AUTHENTICATION (WebAuthn)
+// ========================================
+const BIOMETRIC_STORAGE_KEY = 'safekeep_bio';
+
+// Check if platform authenticator (fingerprint/face) is available
+async function biometricIsSupported() {
+  try {
+    if (!window.PublicKeyCredential) return false;
+    if (!PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) return false;
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch { return false; }
+}
+
+function getBiometricData() {
+  try {
+    const raw = localStorage.getItem(BIOMETRIC_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveBiometricData(data) {
+  localStorage.setItem(BIOMETRIC_STORAGE_KEY, JSON.stringify(data));
+}
+
+function removeBiometricData() {
+  localStorage.removeItem(BIOMETRIC_STORAGE_KEY);
+}
+
+function isBiometricEnabled() {
+  const bio = getBiometricData();
+  return !!(bio && bio.credentialId && bio.wrappedPin);
+}
+
+// Wrap PIN for biometric storage (AES-GCM with random key stored alongside)
+// Security model: WebAuthn gate prevents unauthorized access; storage is convenience only
+async function wrapPinForBiometric(pin) {
+  try {
+    const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const enc = new TextEncoder();
+    const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(pin));
+    const rawKey = await crypto.subtle.exportKey('raw', key);
+    return { key: bufToB64(rawKey), iv: bufToB64(iv), data: bufToB64(cipher) };
+  } catch (e) {
+    console.error('wrapPinForBiometric error:', e);
+    return null;
+  }
+}
+
+async function unwrapPinFromBiometric(wrapped) {
+  try {
+    const key = await crypto.subtle.importKey('raw', b64ToBuf(wrapped.key), 'AES-GCM', false, ['decrypt']);
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64ToBuf(wrapped.iv) }, key, b64ToBuf(wrapped.data));
+    return new TextDecoder().decode(plain);
+  } catch (e) {
+    console.error('unwrapPinFromBiometric error:', e);
+    return null;
+  }
+}
+
+// Generate random challenge for WebAuthn (no backend, so client-generated)
+function generateChallenge() {
+  return crypto.getRandomValues(new Uint8Array(32));
+}
+
+// Convert ArrayBuffer to Base64URL (WebAuthn compatible)
+function bufToBase64URL(buf) {
+  const bytes = new Uint8Array(buf);
+  let str = '';
+  for (const b of bytes) str += String.fromCharCode(b);
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64URLToBuf(b64url) {
+  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+  const bin = atob(b64 + pad);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+
+// Register biometric credential
+async function biometricRegister(pin) {
+  try {
+    const supported = await biometricIsSupported();
+    if (!supported) {
+      toast('Biometría no disponible en este dispositivo', 'error');
+      return false;
+    }
+
+    // Wrap PIN before WebAuthn ceremony
+    const wrappedPin = await wrapPinForBiometric(pin);
+    if (!wrappedPin) { toast('Error al preparar datos', 'error'); return false; }
+
+    const userId = crypto.getRandomValues(new Uint8Array(16));
+    const challenge = generateChallenge();
+
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'SafeKeep', id: location.hostname || 'localhost' },
+        user: { id: userId, name: 'safekeep-user', displayName: 'SafeKeep User' },
+        pubKeyCredParams: [
+          { alg: -7, type: 'public-key' },   // ES256
+          { alg: -257, type: 'public-key' },  // RS256
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+          residentKey: 'discouraged',
+        },
+        timeout: 60000,
+        attestation: 'none',
+      }
+    });
+
+    if (!credential) { toast('Registro cancelado', 'info'); return false; }
+
+    saveBiometricData({
+      credentialId: bufToBase64URL(credential.rawId),
+      wrappedPin,
+      registeredAt: new Date().toISOString(),
+    });
+
+    console.log('SafeKeep: biometric credential registered');
+    return true;
+
+  } catch (e) {
+    if (e.name === 'NotAllowedError') {
+      toast('Autenticación cancelada', 'info');
+    } else {
+      toast('Error al registrar biometría', 'error');
+      console.error('biometricRegister error:', e);
+    }
+    return false;
+  }
+}
+
+// Authenticate with biometric
+async function biometricAuthenticate() {
+  const bio = getBiometricData();
+  if (!bio || !bio.credentialId || !bio.wrappedPin) {
+    toast('Biometría no configurada', 'error');
+    return;
+  }
+
+  const statusEl = document.getElementById('biometric-login-status');
+  if (statusEl) statusEl.textContent = 'Verificando...';
+
+  try {
+    const challenge = generateChallenge();
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{
+          id: base64URLToBuf(bio.credentialId),
+          type: 'public-key',
+          transports: ['internal'],
+        }],
+        userVerification: 'required',
+        timeout: 60000,
+      }
+    });
+
+    if (!assertion) {
+      if (statusEl) statusEl.textContent = '';
+      return;
+    }
+
+    // Biometric verified! Now unwrap the PIN and derive crypto key
+    if (statusEl) statusEl.textContent = 'Desbloqueando...';
+
+    const pin = await unwrapPinFromBiometric(bio.wrappedPin);
+    if (!pin) {
+      toast('Error al recuperar PIN. Ingresa manualmente', 'error');
+      removeBiometricData();
+      updateBiometricUI();
+      if (statusEl) statusEl.textContent = '';
+      return;
+    }
+
+    // Derive the crypto key from PIN (same as normal login)
+    const data = getData();
+    if (data.salt && cryptoAvailable) {
+      const hash = await derivePinHash(pin, data.salt);
+      if (hash === data.pin) {
+        state.cryptoKey = await deriveKeyFromPin(pin, data.salt);
+        state.loginAttempts = 0;
+        state.pinBuffer = '';
+        if (statusEl) statusEl.textContent = '';
+        showScreen('screen-app');
+        initApp();
+        toast('Desbloqueado con biometría', 'success');
+        return;
+      } else {
+        toast('PIN almacenado inválido. Configura de nuevo', 'error');
+        removeBiometricData();
+        updateBiometricUI();
+      }
+    } else if (!data.salt) {
+      // Legacy mode
+      if (hashPinLegacy(pin) === data.pin) {
+        state.loginAttempts = 0;
+        state.pinBuffer = '';
+        if (statusEl) statusEl.textContent = '';
+        showScreen('screen-app');
+        initApp();
+        toast('Desbloqueado con biometría', 'success');
+        return;
+      } else {
+        toast('PIN almacenado inválido. Configura de nuevo', 'error');
+        removeBiometricData();
+        updateBiometricUI();
+      }
+    }
+
+    if (statusEl) statusEl.textContent = '';
+
+  } catch (e) {
+    if (e.name === 'NotAllowedError') {
+      // User cancelled - silent
+    } else {
+      toast('Error biométrico. Usa tu PIN', 'info');
+      console.error('biometricAuthenticate error:', e);
+    }
+    if (statusEl) statusEl.textContent = '';
+  }
+}
+
+// Toggle biometric from settings
+async function toggleBiometric() {
+  if (isBiometricEnabled()) {
+    removeBiometricData();
+    toast('Biometría desactivada', 'info');
+    updateBiometricUI();
+    return;
+  }
+
+  // Enable: need current PIN to wrap
+  const pin = prompt('Ingresa tu PIN actual para activar biometría:');
+  if (!pin || pin.length !== PIN_LENGTH || !/^\d+$/.test(pin)) {
+    toast('PIN inválido', 'error');
+    return;
+  }
+
+  // Verify PIN
+  const data = getData();
+  let pinValid = false;
+  try {
+    if (data.salt && cryptoAvailable) {
+      const hash = await derivePinHash(pin, data.salt);
+      pinValid = (hash === data.pin);
+    } else if (!data.salt) {
+      pinValid = (hashPinLegacy(pin) === data.pin);
+    }
+  } catch { pinValid = false; }
+
+  if (!pinValid) {
+    toast('PIN incorrecto', 'error');
+    return;
+  }
+
+  const success = await biometricRegister(pin);
+  if (success) {
+    toast('Biometría activada', 'success');
+    updateBiometricUI();
+  }
+}
+
+// Offer biometric setup after successful PIN login (one-time prompt)
+async function offerBiometricSetup(pin) {
+  if (isBiometricEnabled()) return;
+  const data = getData();
+  if (data.biometricOffered) return;
+
+  const supported = await biometricIsSupported();
+  if (!supported) return;
+
+  // Mark as offered so we don't ask again every login
+  data.biometricOffered = true;
+  saveData(data);
+
+  // Small delay so user sees the app first
+  setTimeout(async () => {
+    if (confirm('¿Deseas activar el desbloqueo con huella o reconocimiento facial?\n\nPodrás desbloquear SafeKeep sin escribir tu PIN.')) {
+      const success = await biometricRegister(pin);
+      if (success) {
+        toast('Biometría activada', 'success');
+        updateBiometricUI();
+      }
+    }
+  }, 1000);
+}
+
+// Update all biometric UI elements
+async function updateBiometricUI() {
+  const enabled = isBiometricEnabled();
+  const supported = await biometricIsSupported();
+
+  // Login screen button
+  const loginBtn = document.getElementById('btn-biometric-login');
+  if (loginBtn) {
+    if (enabled) loginBtn.classList.remove('hidden');
+    else loginBtn.classList.add('hidden');
+  }
+
+  // Settings card visibility
+  const settingsCard = document.getElementById('settings-biometric');
+  if (settingsCard) {
+    if (supported) settingsCard.classList.remove('hidden');
+    else settingsCard.classList.add('hidden');
+  }
+
+  // Settings toggle button
+  const toggleBtn = document.getElementById('btn-toggle-biometric');
+  if (toggleBtn) {
+    if (enabled) {
+      toggleBtn.textContent = 'Desactivar biometría';
+      toggleBtn.className = 'w-full py-2.5 rounded-xl text-sm font-medium transition-all bg-red-500/20 text-red-400 hover:bg-red-500/30';
+    } else {
+      toggleBtn.textContent = 'Activar biometría';
+      toggleBtn.className = 'w-full py-2.5 rounded-xl text-sm font-medium transition-all bg-vault-600 hover:bg-vault-700 text-white';
+    }
+  }
+
+  // Settings status text
+  const statusText = document.getElementById('biometric-status-text');
+  if (statusText) {
+    statusText.textContent = enabled ? 'Activada — desbloqueo rápido disponible' : 'Huella digital o reconocimiento facial';
+  }
+
+  // Security indicators row
+  const secRow = document.getElementById('security-biometric-status');
+  if (secRow) {
+    if (enabled) {
+      secRow.innerHTML = '<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 6l3 3 5-5"/></svg> Activo';
+      secRow.className = 'text-xs text-green-400 flex items-center gap-1';
+    } else if (supported) {
+      secRow.textContent = 'Disponible';
+      secRow.className = 'text-xs dark:text-surface-300 text-surface-300';
+    } else {
+      secRow.textContent = 'No disponible';
+      secRow.className = 'text-xs dark:text-surface-300 text-surface-300';
+    }
+  }
+}
+
+// Show/hide biometric button on login screen
+function initBiometricLoginButton() {
+  if (isBiometricEnabled()) {
+    const btn = document.getElementById('btn-biometric-login');
+    if (btn) btn.classList.remove('hidden');
+  }
+}
+
+// ========================================
+// EVENTS & INIT
+// ========================================
+function initApp() {
+  const data = getData();
+  applyTheme(data.theme || 'dark');
+  navigateTo('vault');
+  renderVault();
+  startInactivityTimer();
+  updateBiometricUI(); // v1.2
+}
+
+// Keyboard support for PIN screens
+document.addEventListener('keydown', e => {
+  const setupActive = document.getElementById('screen-setup').classList.contains('active');
+  const loginActive = document.getElementById('screen-login').classList.contains('active');
+
+  if (setupActive || loginActive) {
+    const screen = setupActive ? 'setup' : 'login';
+    if (e.key >= '0' && e.key <= '9') pinInput(e.key, screen);
+    if (e.key === 'Backspace') pinDelete(screen);
+  }
+});
+
+// Boot
+(function boot() {
+  registerPWA();
+  const data = loadData();
+  if (!data || !data.pin) {
+    showScreen('screen-setup');
+  } else {
+    applyTheme(data.theme || 'dark');
+    showScreen('screen-login');
+    updateBiometricUI(); // v1.2: show biometric button if enabled
+    // v1.2: Auto-trigger biometric on login screen if enabled
+    if (isBiometricEnabled()) {
+      setTimeout(() => biometricAuthenticate(), 600);
+    }
+  }
+})();
+</script>
+</body>
+</html>
